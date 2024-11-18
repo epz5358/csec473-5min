@@ -1,9 +1,24 @@
 #/bin/bash
+sudo adduser realredteam --shell=/bin/false --no-create-home --disabled-password
 
-#change passwords
-while IFS= read -r user; do
-  echo "$user:3blue3team" | sudo chpasswd
-done < /tmp/users
+USER_LIST=$(awk -F: '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd)
+EXCLUDED_USERS=("greyteam" "grayteam" "blackteam")
+# Loop through each user and set a new password
+for USER in $USER_LIST; do
+    # Change the user's password
+    if [[ " ${EXCLUDED_USERS[@]} " =~ " $USER " ]]; then
+        echo "Skipping user: $USER"
+        continue
+    fi
+    
+    echo "$USER:3blue3team" | sudo chpasswd
+    
+    if [[ $? -eq 0 ]]; then
+        echo "Password successfully changed for user: $USER"
+    else
+        echo "Failed to change password for user: $USER"
+    fi
+done
 
 echo "Setting up a firewall to block all traffic..."
 
@@ -86,11 +101,6 @@ sudo systemctl disable vsftpd
 sudo systemctl stop proftpd
 sudo systemctl disable proftpd
 
-sudo systemctl status ssh
-sudo systemctl status vsftpd  # or proftpd, depending on your setup
-
-sudo adduser realredteam --shell=/bin/false --no-create-home
-
 #defaultservices=("anacron.service" "apparmor.service" "avahi-daemon.service" "cloud-config.service" "cloud-final.service" "cloud-init-local.service" "cloud-init.service" "colord.service" "console-setup.service" "cron.service" "cups-browsed.service" "cups.service" "dbus.service" "getty@tty1.service" "ifupdown-pre.service" "keyboard-setup.service" "kmod-static-nodes.service" "lightdm.service" "lm-sensors.service" "ModemManager.service" "networking.service" "NetworkManager-wait-online.service" "NetworkManager.service" "plymouth-quit-wait.service" "plymouth-read-write.service" "plymouth-start.service" "polkit.service" "rtkit-daemon.service" "ssh.service" "systemd-binfmt.service" "systemd-journal-flush.service" "systemd-journald.service" "systemd-logind.service" "systemd-modules-load.service" "systemd-random-seed.service" "systemd-remount-fs.service" "systemd-sysctl.service" "systemd-sysusers.service" "systemd-timesyncd.service" "systemd-tmpfiles-setup-dev.service" "systemd-tmpfiles-setup.service" "systemd-udev-trigger.service" "systemd-udevd.service" "systemd-update-utmp.service" "systemd-user-sessions.service" "udisks2.service" "upower.service" "user-runtime-dir@1000.service" "user@1000.service" "wpa_supplicant.service")
 
 # File containing the list of services to compare
@@ -110,5 +120,3 @@ EXPECTED_SERVICES=$(cat "$SERVICE_FILE")
 
 echo "Services currently running but not listed in $SERVICE_FILE:"
 comm -13 <(echo "$EXPECTED_SERVICES" | sort) <(echo "$ACTIVE_SERVICES" | sort)
-
-done
